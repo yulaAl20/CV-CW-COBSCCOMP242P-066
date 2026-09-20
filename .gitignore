@@ -9,6 +9,7 @@ data/
 # Publish the exported model as a GitHub Release asset instead.
 *.pt
 *.pth
+*.onnx
 *.npz
 models/**
 !models/.gitkeep
