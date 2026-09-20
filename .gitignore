@@ -1,0 +1,25 @@
+data/
+*.jpg
+*.jpeg
+*.png
+!docs/images/*.png
+!results/figures/*.png
+
+# Model weights: large binaries do not belong in git history.
+# Publish the exported model as a GitHub Release asset instead.
+*.pt
+*.pth
+*.npz
+models/**
+!models/.gitkeep
+!models/export/deployment_manifest.json
+
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+.env
+.DS_Store
+.idea/
+.vscode/
