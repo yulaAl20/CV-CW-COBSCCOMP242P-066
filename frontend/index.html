@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RetinaTriage — diabetic retinopathy screening</title>
+<meta name="description" content="Grades retinal fundus photographs on the five-stage diabetic retinopathy scale and routes each case to the right next step.">
+<link rel="icon" href="/static/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+
+<a class="skip-link" href="#workspace">Skip to the workspace</a>
+
+<header class="topbar">
+  <div class="brand">
+    <img src="/static/assets/logo.svg" alt="" width="28" height="28">
+    <div>
+      <span class="brand-name">RetinaTriage</span>
+      <span class="brand-sub">Diabetic retinopathy stage detection</span>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span id="status-pill" class="pill pill-wait">Checking the model</span>
+    <a class="topbar-link" href="/evidence">Evidence</a>
+    <a class="topbar-link" href="/docs" target="_blank" rel="noopener">API</a>
+  </div>
+</header>
+
+<div id="demo-banner" class="banner" hidden>
+  <strong>Demo mode.</strong>
+  <span>No trained weights are installed on this server, so the stage shown is synthesised
+  from image statistics. Preprocessing and the triage rules are the real ones.</span>
+</div>
+
+<main id="workspace">
+
+  <!-- ─── upload ─────────────────────────────────────────────────────── -->
+  <section class="intake" aria-labelledby="intake-heading">
+    <h1 id="intake-heading">Read a fundus photograph</h1>
+    <p class="lede">
+      Drop a retinal photograph in. The app grades it on the five-stage scale,
+      says how certain it is, and tells you what to do with the case.
+    </p>
+
+    <div id="dropzone" class="dropzone" tabindex="0" role="button"
+         aria-label="Choose a fundus photograph, or drop one here">
+      <svg viewBox="0 0 48 48" class="dropzone-icon" aria-hidden="true">
+        <circle cx="24" cy="24" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <circle cx="30" cy="20" r="4.5" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <path d="M30 24.5c-4 3.5-9 7.5-13.5 9.5M30 24.5c1 4 1.5 7 1 10"
+              fill="none" stroke="currentColor" stroke-width="1.2" opacity=".65"/>
+      </svg>
+      <p class="dropzone-title">Choose a photograph, or drop one here</p>
+      <p class="dropzone-hint">JPEG, PNG or TIFF · up to 12 MB · the original capture works best</p>
+      <input id="file-input" type="file" accept="image/*" hidden>
+    </div>
+
+    <div class="intake-options">
+      <label class="check">
+        <input type="checkbox" id="opt-stages" checked>
+        <span>Show each preprocessing step</span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="opt-heatmap" checked>
+        <span>Show the evidence heatmap</span>
+      </label>
+    </div>
+
+    <div id="samples" class="samples" hidden>
+      <span class="samples-label">Or try one of these:</span>
+      <div id="samples-list" class="samples-list"></div>
+    </div>
+  </section>
+
+  <!-- ─── progress / errors ──────────────────────────────────────────── -->
+  <div id="progress" class="progress" hidden>
+    <div class="progress-bar"><span></span></div>
+    <p id="progress-text">Preprocessing the image…</p>
+  </div>
+
+  <div id="error" class="alert" hidden role="alert"></div>
+
+  <!-- ─── result ─────────────────────────────────────────────────────── -->
+  <section id="result" class="result" hidden aria-live="polite">
+
+    <div class="result-head">
+      <h2 id="result-filename">result</h2>
+      <div class="result-meta">
+        <span id="result-timing"></span>
+        <button id="btn-reset" class="ghost-btn" type="button">Read another</button>
+      </div>
+    </div>
+
+    <!-- the severity ladder is the centrepiece: DR is an ordinal scale, and
+         the model is trained with an ordinal loss, so the readout is a scale -->
+    <div class="ladder-panel">
+      <div class="ladder-head">
+        <div>
+          <p class="ladder-eyebrow">Stage</p>
+          <p id="ladder-grade" class="ladder-grade">—</p>
+          <p id="ladder-description" class="ladder-description"></p>
+        </div>
+        <dl class="ladder-figures">
+          <div><dt>Severity score</dt><dd id="fig-severity" class="num">—</dd></div>
+          <div><dt>Confidence</dt><dd id="fig-confidence" class="num">—</dd></div>
+          <div><dt>Disagreement</dt><dd id="fig-uncertainty" class="num">—</dd></div>
+        </dl>
+      </div>
+      <div id="ladder" class="ladder" role="img" aria-label="Severity scale"></div>
+    </div>
+
+    <div class="result-grid">
+
+      <!-- viewer -->
+      <div class="panel viewer-panel">
+        <div class="tabs" role="tablist" aria-label="Image views">
+          <button class="tab is-active" role="tab" data-view="preprocessed">What the model sees</button>
+          <button class="tab" role="tab" data-view="original">As uploaded</button>
+          <button class="tab" role="tab" data-view="heatmap">Evidence</button>
+          <button class="tab" role="tab" data-view="stages">Pipeline</button>
+        </div>
+        <div class="viewer">
+          <img id="viewer-image" alt="Fundus photograph under review">
+          <div id="viewer-stages" class="stage-strip" hidden></div>
+          <p id="viewer-caption" class="viewer-caption"></p>
+        </div>
+      </div>
+
+      <!-- readout -->
+      <div class="readout">
+
+        <div id="triage-card" class="panel triage">
+          <p class="triage-eyebrow">Next step</p>
+          <p id="triage-label" class="triage-label">—</p>
+          <p id="triage-reason" class="triage-reason"></p>
+          <p id="triage-rule" class="triage-rule"></p>
+        </div>
+
+        <div class="panel">
+          <h3 class="panel-title">How the five stages scored</h3>
+          <div id="stage-bars" class="stage-bars"></div>
+        </div>
+
+        <div class="panel">
+          <h3 class="panel-title">Screening decisions</h3>
+          <dl class="kv">
+            <div><dt>Any diabetic retinopathy</dt><dd id="kv-anydr" class="num">—</dd></div>
+            <div><dt>Referable disease, stage 2+</dt><dd id="kv-referable" class="num">—</dd></div>
+            <div><dt>Photograph too poor to grade</dt><dd id="kv-ungradable" class="num">—</dd></div>
+            <div><dt>Prediction spread across <span id="kv-samples">20</span> passes</dt>
+                 <dd id="kv-entropy" class="num">—</dd></div>
+          </dl>
+        </div>
+
+      </div>
+    </div>
+
+    <div id="warnings" class="warnings" hidden></div>
+  </section>
+
+  <!-- ─── link out to the evidence page ──────────────────────────────── -->
+  <aside id="evidence-cta" class="evidence-cta" hidden>
+    <div>
+      <p class="evidence-cta-title">Before you trust any of this</p>
+      <p class="evidence-cta-body">
+        Every number above comes from a model that gets some cases wrong. The
+        evidence page shows exactly which ones, measured on images it never
+        saw during training.
+      </p>
+    </div>
+    <a class="solid-btn" href="/evidence">See the evidence</a>
+  </aside>
+
+</main>
+
+<footer class="footer">
+  <p>
+    <strong>Not a medical device.</strong> RetinaTriage is a student prototype built for
+    coursework. It has not been clinically validated and must not be used to make
+    decisions about a real patient.
+  </p>
+  <p class="footer-meta">
+    EfficientNetV2-S · ordinal CORN head · Monte-Carlo dropout uncertainty ·
+    trained on DDR, externally tested on APTOS 2019
+  </p>
+</footer>
+
+<script src="/static/js/grades.js"></script>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/app.js"></script>
+</body>
+</html>
