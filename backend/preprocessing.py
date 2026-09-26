@@ -106,7 +106,12 @@ def preprocess_fundus(
     return circular_crop(processed)
 
 
-def preprocessing_stages(image_bgr: np.ndarray, size: int = 384) -> dict[str, np.ndarray]:
+def preprocessing_stages(
+    image_bgr: np.ndarray,
+    size: int = 384,
+    use_graham: bool = True,
+    use_clahe: bool = True,
+) -> dict[str, np.ndarray]:
     """
     Same pipeline, but returns every intermediate stage as a BGR image.
 
@@ -116,8 +121,8 @@ def preprocessing_stages(image_bgr: np.ndarray, size: int = 384) -> dict[str, np
     cropped = crop_to_retina(image_bgr)
     squared = pad_to_square(cropped)
     resized = cv2.resize(squared, (size, size), interpolation=cv2.INTER_AREA)
-    contrast = clahe_green(resized)
-    illumination = subtract_local_average(contrast)
+    contrast = clahe_green(resized) if use_clahe else resized
+    illumination = subtract_local_average(contrast) if use_graham else contrast
     masked = circular_crop(illumination)
     return {
         "raw": cv2.resize(image_bgr, (size, size), interpolation=cv2.INTER_AREA),
