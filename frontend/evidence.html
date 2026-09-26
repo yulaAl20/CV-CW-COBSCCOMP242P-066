@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Evidence — RetinaTriage</title>
+<meta name="description" content="Measured performance of the RetinaTriage diabetic retinopathy model, on held-out and external test sets.">
+<link rel="icon" href="/static/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+
+<a class="skip-link" href="#evidence">Skip to the evidence</a>
+
+<header class="topbar">
+  <div class="brand">
+    <img src="/static/assets/logo.svg" alt="" width="28" height="28">
+    <div>
+      <span class="brand-name">RetinaTriage</span>
+      <span class="brand-sub">Model evidence</span>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <a class="topbar-link" href="/">Read an image</a>
+    <a class="topbar-link" href="/docs" target="_blank" rel="noopener">API</a>
+  </div>
+</header>
+
+<main id="evidence" class="evidence-page">
+
+  <section class="evidence-intro">
+    <h1>What this model gets right, and what it gets wrong</h1>
+    <p class="lede">
+      Measured on 1,879 images the model never saw during training, and then
+      again on 3,662 images from a different country, different cameras and a
+      different patient population. Both sets are shown, because only one of
+      them is a fair test of whether the model travels.
+    </p>
+    <p id="run-summary" class="run-summary"></p>
+  </section>
+
+  <div id="evidence-error" class="alert" hidden role="alert"></div>
+
+  <div id="evidence-body" hidden>
+
+    <!-- headline -->
+    <section class="evidence-section">
+      <h2>Headline numbers</h2>
+      <p class="section-note">
+        On the held-out test split. Accuracy is shown against the 50.0% a model
+        could score by answering “No DR” to everything.
+      </p>
+      <div id="headline-metrics" class="metric-row"></div>
+    </section>
+
+    <!-- generalisation -->
+    <section class="evidence-section">
+      <h2>Does it travel?</h2>
+      <p class="section-note">
+        The same model, on APTOS 2019, which it was never trained on. Read the
+        last two rows together: the ability to rank eyes by severity survives
+        almost intact, while agreement on exact stage boundaries does not.
+      </p>
+      <div class="panel">
+        <div id="comparison"></div>
+      </div>
+    </section>
+
+    <!-- errors -->
+    <section class="evidence-section">
+      <h2>Where the errors fall</h2>
+      <div class="perf-grid">
+        <div class="panel">
+          <h3 class="panel-title">Confusion matrix</h3>
+          <p class="panel-note">
+            Each row is a true stage, each column what the model said. Errors
+            clustering next to the diagonal is the behaviour the ordinal loss
+            was chosen to produce.
+          </p>
+          <div id="confusion"></div>
+        </div>
+
+        <div class="panel">
+          <h3 class="panel-title">Precision, recall and F1 per stage</h3>
+          <p class="panel-note">
+            The two weakest stages are also the two rarest. Mild NPDR is defined
+            by microaneurysms alone, near the resolution limit at 384 px.
+          </p>
+          <div id="per-class"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- training -->
+    <section class="evidence-section">
+      <h2>How it was trained</h2>
+      <div class="perf-grid">
+        <div class="panel">
+          <h3 class="panel-title">Learning curves</h3>
+          <p class="panel-note">
+            Loss and agreement with the human grader, by epoch. Training ran on
+            augmented, class-balanced batches, so the two accuracy lines are not
+            directly comparable — the trend is what matters.
+          </p>
+          <div id="curves"></div>
+        </div>
+
+        <div class="panel">
+          <h3 class="panel-title">Deferring the uncertain cases</h3>
+          <p class="panel-note">
+            Accuracy on the cases the model keeps, as it hands more to a human.
+            Sensitivity rising alongside accuracy is the important part: it rules
+            out a model that flatters its score by deferring the sick patients.
+          </p>
+          <div id="sweep"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- deployment -->
+    <section class="evidence-section">
+      <h2>What it costs to run</h2>
+      <p class="section-note">
+        Measured on CPU, one image at a time. The app ships the larger fp32
+        export because the smaller one turned out to be slower.
+      </p>
+      <div class="panel">
+        <div id="deployment"></div>
+      </div>
+    </section>
+
+    <!-- limitations -->
+    <section class="evidence-section">
+      <h2>What this does not show</h2>
+      <div class="limitations">
+        <div class="limitation">
+          <h3>The quality gate has never seen a bad photograph</h3>
+          <p>
+            This copy of DDR contained no ungradable images, so the quality head
+            trained with no negative examples. The re-capture rule exists and is
+            wired up, but it did not fire once across all 1,879 test images. A
+            genuinely unreadable photograph will be graded confidently instead
+            of rejected.
+          </p>
+        </div>
+        <div class="limitation">
+          <h3>Mild disease is unreliable</h3>
+          <p>
+            F1 of 0.38 internally and 0.08 externally. Stage 1 is the hardest
+            class for human graders too, and with 441 training examples the
+            model sees it rarely and at the resolution where it is least
+            visible.
+          </p>
+        </div>
+        <div class="limitation">
+          <h3>Confidence runs ahead of accuracy</h3>
+          <p>
+            Calibration error of 0.075 means that when the model reports 90%
+            confidence it is right about 82% of the time. The reporting
+            thresholds are set low to compensate, but the underlying
+            overconfidence has not been corrected.
+          </p>
+        </div>
+        <div class="limitation">
+          <h3>Nothing here is clinical validation</h3>
+          <p>
+            These are retrospective results on two public datasets. There has
+            been no prospective testing, no regulatory review, and no breakdown
+            by age, sex or ethnicity, because the datasets do not carry that
+            metadata.
+          </p>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <div id="evidence-loading" class="progress">
+    <div class="progress-bar"><span></span></div>
+    <p>Loading the recorded results…</p>
+  </div>
+
+</main>
+
+<footer class="footer">
+  <p>
+    <strong>Not a medical device.</strong> RetinaTriage is a student prototype
+    built for coursework. It has not been clinically validated and must not be
+    used to make decisions about a real patient.
+  </p>
+  <p class="footer-meta">
+    Every figure on this page is read from the metrics recorded during training,
+    not recomputed, so the app and the report cannot disagree about what the
+    model scores.
+  </p>
+</footer>
+
+<script src="/static/js/grades.js"></script>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/charts.js"></script>
+<script src="/static/js/evidence.js"></script>
+</body>
+</html>
