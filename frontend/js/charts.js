@@ -1,6 +1,3 @@
-/* Charts are drawn as inline SVG rather than pulled from a charting library.
-   Four small plots do not justify a 200 KB dependency, and hand-drawn SVG
-   inherits the page's own colour tokens for free. */
 
 const Charts = (() => {
   const NS = "http://www.w3.org/2000/svg";

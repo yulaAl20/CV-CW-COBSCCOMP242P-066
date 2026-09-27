@@ -1,12 +1,3 @@
-/* ===========================================================================
-   RetinaTriage
-
-   Fundus photographs are read on dark screens so the reds and oranges of the
-   retina stay true, so the interface is dark too. The colour system is the
-   five-stage severity scale itself - green through crimson - and nothing else
-   in the page is allowed to use those hues, so a colour on screen always
-   means a stage.
-   ======================================================================== */
 
 :root {
   /* surfaces */

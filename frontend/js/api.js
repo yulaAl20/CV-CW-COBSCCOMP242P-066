@@ -1,5 +1,3 @@
-/* Thin wrapper around the backend. Every call funnels through one place so
-   error handling and the base URL are defined once. */
 
 const API = (() => {
   const base = "";

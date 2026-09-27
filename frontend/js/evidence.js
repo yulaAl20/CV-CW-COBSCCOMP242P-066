@@ -1,8 +1,4 @@
-/* Evidence page.
 
-   Everything here is read from artifacts/evaluation.json through /api/metrics.
-   Nothing is recomputed and nothing is hard-coded, so this page cannot claim a
-   score the training run did not produce. */
 
 (() => {
   const $ = (id) => document.getElementById(id);

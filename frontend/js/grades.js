@@ -1,9 +1,3 @@
-/* Shared between the reading page and the evidence page.
-
-   The five severity colours are the project's whole colour system, so they
-   live in exactly one place. If they drift apart, a stage means one colour on
-   one page and another colour on the next, which is worse than having no
-   colour coding at all. */
 
 const Grades = (() => {
   const COLOURS = ["#3FB98A", "#BFC94E", "#E9A13B", "#E2663C", "#CF3D57"];
