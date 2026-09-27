@@ -81,6 +81,18 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+if engine.is_ready and engine.is_stand_in:
+    # These weights load cleanly and grade every image the same way, so the
+    # app would otherwise look healthy while telling you nothing.
+    st.error(
+        "**These are stand-in weights, not a trained model.** "
+        "`tests/make_fake_model.py` writes a random projection into `models/` so "
+        "the tests can run without the 81 MB export. It returns a near-identical "
+        "reading for every image. Delete the contents of `models/` and install "
+        "the real export — see the README.",
+        icon="🚫",
+    )
+
 if not engine.is_ready and not settings.allow_demo_mode:
     st.error(engine.load_error or "The model is not available.")
     st.stop()
@@ -114,8 +126,8 @@ def analyse(image: np.ndarray, digest: str, filename: str) -> dict:
 
     tensor = to_model_tensor(preprocessed, settings.image_size)
 
-    using_demo = not engine.is_ready
-    if using_demo:
+    using_demo = not engine.is_ready or engine.is_stand_in
+    if not engine.is_ready:
         prediction = demo_mode.synthetic_prediction(preprocessed, settings.mc_dropout_samples)
     else:
         prediction = engine.predict(tensor)

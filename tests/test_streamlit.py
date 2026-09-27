@@ -250,3 +250,27 @@ def test_cam_can_be_switched_off_for_a_small_host():
         np.zeros((1, 3, settings.image_size, settings.image_size), dtype=np.float32)
     )
     assert 0 <= prediction.grade <= 4
+
+
+def test_stand_in_weights_are_called_out():
+    """
+    The stand-in loads cleanly and grades every image the same way. If the app
+    reported "Model ready" for it, a screenshot of a meaningless reading would
+    look exactly like a real one — which is how this went unnoticed once.
+    """
+    from backend.config import Settings
+    from backend.inference import DRTriageEngine
+
+    engine = DRTriageEngine(Settings())
+    engine.load()
+    assert engine.is_ready
+    assert engine.is_stand_in, "the testing weights were not recognised as stand-in"
+
+    body = text_of(run("views/reader.py"))
+    assert "stand-in weights" in body.lower()
+
+
+def test_a_reading_from_stand_in_weights_is_marked_synthetic():
+    app = run("views/reader.py", upload=True)
+    entry = app.session_state["history"][0]
+    assert entry["demo"], "a stand-in reading was not flagged as synthetic"
