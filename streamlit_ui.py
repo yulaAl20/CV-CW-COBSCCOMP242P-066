@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import base64
@@ -316,10 +317,9 @@ def model_status(engine: DRTriageEngine) -> None:
         st.sidebar.error("Stand-in weights — results are meaningless")
     elif engine.is_ready:
         size = engine.describe().get("backbone_size_mb")
-        #st.sidebar.success(f"Model ready{f' · {size} MB' if size else ''}")
+        st.sidebar.success(f"Model ready{f' · {size} MB' if size else ''}")
         if not engine.explains:
-            #st.sidebar.caption("Heatmaps off — backbone_cam.onnx not loaded.")
-            pass
+            st.sidebar.caption("Heatmaps off — backbone_cam.onnx not loaded.")
     elif not settings.allow_demo_mode:
         st.sidebar.error("Model unavailable")
 
