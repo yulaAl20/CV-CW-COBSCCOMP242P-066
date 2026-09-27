@@ -44,9 +44,6 @@ aggregate statistics.
 | Referable DR AUC | **0.9807** | 0.9640 |
 | DR detection recall | 0.9350 | 1.0000 |
 
-Full breakdown in [`docs/evaluation.md`](docs/evaluation.md). Limitations —
-and there are real ones — in [`docs/model-card.md`](docs/model-card.md).
-
 ---
 
 ## Two front ends, one engine
@@ -118,9 +115,6 @@ than one.
 
 **Triage rules, checked in order.** Quality, then certainty, then severity. An
 unreadable photograph of a severe eye is still an unreadable photograph.
-
-Design decisions and their justifications are in
-[`docs/architecture.md`](docs/architecture.md).
 
 ---
 
