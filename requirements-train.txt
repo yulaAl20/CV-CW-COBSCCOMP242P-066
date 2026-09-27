@@ -1,0 +1,16 @@
+# Training and export only — NOT needed to run the app.
+#
+# This is what notebooks/dr_stage_detection_training.ipynb needs, and what
+# scripts/export_deployment.py needs to turn a checkpoint into ONNX. Install it
+# on Kaggle or a GPU machine, never on the server that serves the app.
+#
+#     pip install -r requirements-train.txt
+
+torch>=2.2.0
+torchvision>=0.17.0
+timm>=1.0.0                  # provides the EfficientNetV2-S backbone
+albumentations>=1.4.0
+scikit-learn>=1.4.0          # metrics: QWK, ROC, classification report
+matplotlib>=3.8.0
+tqdm>=4.66.0
+onnx>=1.16.0                 # export target

@@ -1,0 +1,12 @@
+# Development and CI extras. Install on top of requirements.txt:
+#     pip install -r requirements.txt -r requirements-dev.txt
+
+pytest==8.3.4
+httpx==0.28.1          # FastAPI's TestClient needs this
+ruff==0.8.4            # linting
+matplotlib==3.10.0     # scripts/make_figures.py
+onnx==1.17.0           # tests/make_fake_model.py
+
+# Only needed to re-export the model from a training checkpoint:
+#   torch>=2.1
+#   timm>=1.0

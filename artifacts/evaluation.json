@@ -1,0 +1,135 @@
+{
+  "_source": "Exported from notebooks/dr_stage_detection_training.ipynb, run 2026-09-21 on a Tesla T4. Regenerate with scripts/collect_artifacts.py.",
+  "_run": {
+    "backbone": "tf_efficientnetv2_s.in21k_ft_in1k",
+    "image_size": 384,
+    "epochs_run": 20,
+    "epochs_configured": 25,
+    "stopped_early": true,
+    "best_epoch": 15,
+    "best_val_qwk": 0.896,
+    "train_images": 8765,
+    "val_images": 1878,
+    "test_images": 1879,
+    "external_images": 3662,
+    "total_parameters_millions": 20.2,
+    "training_minutes": 74
+  },
+  "ddr_test": {
+    "n_images": 1879,
+    "accuracy": 0.8664,
+    "qwk": 0.9072,
+    "macro_precision": 0.7525,
+    "macro_recall": 0.7134,
+    "macro_f1": 0.7282,
+    "weighted_f1": 0.8692,
+    "majority_baseline": 0.5003,
+    "precision_per_class": [0.935, 0.339, 0.857, 0.68, 0.952],
+    "recall_per_class": [0.933, 0.432, 0.856, 0.486, 0.861],
+    "f1_per_class": [0.934, 0.38, 0.856, 0.567, 0.904],
+    "support_per_class": [940, 95, 672, 35, 137],
+    "confusion_matrix": [
+      [877, 27, 36, 0, 0],
+      [29, 41, 25, 0, 0],
+      [31, 53, 575, 8, 5],
+      [0, 0, 17, 17, 1],
+      [1, 0, 18, 0, 118]
+    ],
+    "error_breakdown": {
+      "total_errors": 251,
+      "off_by_one_stage": 160,
+      "off_by_two_or_more": 91
+    },
+    "dr_detection": {
+      "accuracy": 0.934,
+      "precision": 0.933,
+      "recall_sensitivity": 0.935,
+      "specificity": 0.933,
+      "f1": 0.934,
+      "tp": 878,
+      "fp": 63,
+      "fn": 61,
+      "tn": 877
+    },
+    "referable_decision": {
+      "accuracy": 0.9223,
+      "precision": 0.9256,
+      "recall_sensitivity": 0.8993,
+      "specificity": 0.9411,
+      "f1": 0.9123,
+      "tp": 759,
+      "fp": 61,
+      "fn": 85,
+      "tn": 974
+    },
+    "referable": {
+      "auc": 0.9807,
+      "prevalence": 0.449,
+      "sens_at_spec_90": { "sensitivity": 0.953, "specificity": 0.901 },
+      "sens_at_spec_95": { "sensitivity": 0.9005, "specificity": 0.951 }
+    },
+    "calibration": {
+      "ece": 0.0751,
+      "mce": 0.3726
+    },
+    "selective": {
+      "aurc": 0.0347,
+      "points": [
+        { "coverage": 1.0, "accuracy": 0.8664 },
+        { "coverage": 0.8, "accuracy": 0.9437 },
+        { "coverage": 0.5, "accuracy": 0.9815 }
+      ]
+    }
+  },
+  "aptos_external": {
+    "n_images": 3662,
+    "accuracy": 0.7018,
+    "qwk": 0.7921,
+    "macro_precision": 0.541,
+    "macro_recall": 0.4535,
+    "macro_f1": 0.4556,
+    "weighted_f1": 0.6824,
+    "precision_per_class": [1.0, 0.119, 0.53, 0.36, 0.696],
+    "recall_per_class": [0.822, 0.059, 0.951, 0.14, 0.295],
+    "f1_per_class": [0.902, 0.079, 0.681, 0.201, 0.414],
+    "support_per_class": [1805, 370, 999, 193, 295],
+    "dr_detection": {
+      "accuracy": 0.9123,
+      "precision": 0.8526,
+      "recall_sensitivity": 1.0,
+      "specificity": 0.8222,
+      "f1": 0.9204,
+      "tp": 1857,
+      "fp": 321,
+      "fn": 0,
+      "tn": 1484
+    },
+    "referable": {
+      "auc": 0.964
+    }
+  },
+  "deployment": {
+    "onnx_export_verified": true,
+    "max_abs_difference": 5.25e-6,
+    "tolerance": 0.001,
+    "benchmarks": [
+      { "model": "backbone_fp32.onnx", "median_ms": 186.2, "mean_ms": 187.1, "p95_ms": 197.7, "size_mb": 80.6 },
+      { "model": "backbone_int8.onnx", "median_ms": 343.1, "mean_ms": 341.5, "p95_ms": 350.7, "size_mb": 21.1 }
+    ]
+  },
+  "config": {
+    "image_size": 384,
+    "num_classes": 5,
+    "backbone": "tf_efficientnetv2_s.in21k_ft_in1k",
+    "dropout": 0.4,
+    "epochs": 25,
+    "batch_size": 32,
+    "head_lr": 0.001,
+    "backbone_lr": 0.0001,
+    "weight_decay": 1e-5,
+    "mc_dropout_samples": 20,
+    "ungradable_threshold": 0.5,
+    "uncertainty_threshold": 0.45,
+    "confidence_threshold": 0.55
+  }
+}

@@ -9,7 +9,6 @@ import numpy as np
 from .config import GRADE_NAMES, Settings
 
 
-
 def sigmoid(x: np.ndarray) -> np.ndarray:
     return 1.0 / (1.0 + np.exp(-x))
 
@@ -32,6 +31,8 @@ def softmax(x: np.ndarray, axis: int = -1) -> np.ndarray:
     exponentiated = np.exp(shifted)
     return exponentiated / exponentiated.sum(axis=axis, keepdims=True)
 
+
+# ---------------------------------------------------------------------------
 
 
 @dataclass
@@ -85,6 +86,9 @@ class DRTriageEngine:
         self.dropout_p: float = 0.4
         self.load_error: str | None = None
         self.feature_size: int | None = None
+        # True when the loaded weights are the testing stand-in rather than a
+        # trained export. See `stand_in_reason`.
+        self.is_stand_in: bool = False
         self._rng = np.random.default_rng(42)
 
     # -- loading ------------------------------------------------------------
@@ -145,8 +149,25 @@ class DRTriageEngine:
             except Exception:
                 self.cam_session = None
 
+        self.is_stand_in = self._detect_stand_in()
         self.load_error = None
         return True
+
+    def _detect_stand_in(self) -> bool:
+        """
+        Is this the testing stand-in rather than a trained model?
+
+        Two checks. The marker file is written by tests/make_fake_model.py and
+        is the reliable one. The size check is a backstop for weights that
+        arrived some other way: a trained EfficientNetV2-S export is ~81 MB, so
+        anything under 5 MB cannot be one.
+        """
+        if (self.settings.model_dir / "STAND_IN_MODEL").exists():
+            return True
+        try:
+            return self.settings.backbone_path.stat().st_size < 5_000_000
+        except OSError:
+            return False
 
     @property
     def is_ready(self) -> bool:
@@ -254,6 +275,7 @@ class DRTriageEngine:
                 else None
             ),
             "feature_size": self.feature_size,
+            "stand_in": self.is_stand_in,
             "dropout_p": self.dropout_p,
             "mc_dropout_samples": self.settings.mc_dropout_samples,
             "error": self.load_error,

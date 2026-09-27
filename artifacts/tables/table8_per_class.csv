@@ -1,0 +1,6 @@
+grade,name,images,precision,recall,f1_score
+0,No DR,940,0.935,0.933,0.934
+1,Mild NPDR,95,0.339,0.432,0.380
+2,Moderate NPDR,672,0.857,0.856,0.856
+3,Severe NPDR,35,0.680,0.486,0.567
+4,Proliferative DR,137,0.952,0.861,0.904

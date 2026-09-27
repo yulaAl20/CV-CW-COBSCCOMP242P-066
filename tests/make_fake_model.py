@@ -1,3 +1,16 @@
+"""
+Builds a tiny stand-in for the exported model.
+
+The real backbone is 80 MB and needs a GPU-trained checkpoint to produce, which
+makes it useless in continuous integration. This script writes an ONNX graph
+with the same input and output signature - image in, 1280-dim feature vector
+out - built from global pooling and a fixed random projection. It is nonsense
+numerically, but it exercises exactly the code paths the real model does:
+session loading, feature extraction, MC dropout, CORN decoding and triage.
+
+    python tests/make_fake_model.py --out models
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -66,6 +79,16 @@ def main() -> None:
     onnx.save(build_backbone(), out / "backbone_fp32.onnx")
     onnx.save(build_backbone(with_map=True), out / "backbone_cam.onnx")
     np.savez(out / "heads.npz", **build_heads())
+
+    # Leave a marker. These files load cleanly and report "Model ready", so
+    # without this the app looks healthy while returning the same stage for
+    # every image — the failure is silent, which is the worst kind.
+    (out / "STAND_IN_MODEL").write_text(
+        "These weights are a random projection written by tests/make_fake_model.py.\n"
+        "They exercise the inference path for testing and predict nothing.\n"
+        "Delete this folder's contents and install the real export before\n"
+        "reporting any result.\n"
+    )
 
     print(f"stand-in model written to {out.resolve()}")
     print("  backbone_fp32.onnx, backbone_cam.onnx, heads.npz")

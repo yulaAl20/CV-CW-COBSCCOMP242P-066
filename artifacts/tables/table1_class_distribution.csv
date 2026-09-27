@@ -1,0 +1,6 @@
+grade,name,count,percent,ratio_to_majority
+0,No DR,6266,50.04,1.0
+1,Mild NPDR,630,5.03,9.9
+2,Moderate NPDR,4477,35.75,1.4
+3,Severe NPDR,236,1.88,26.6
+4,Proliferative DR,913,7.29,6.9
