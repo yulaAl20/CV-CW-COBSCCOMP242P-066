@@ -120,10 +120,18 @@ def apply_theme() -> None:
 # ---------------------------------------------------------------------------
 
 
+REQUIRED_WEIGHTS = ("backbone_fp32.onnx", "heads.npz")
+
+
 def _fetch_weights(base_url: str, target: Path) -> list[str]:
-    """Pull the weights from a GitHub Release on first run."""
+    """
+    Pull any missing weights from a GitHub Release. Returns what went wrong.
+
+    Only the two required files are reported as problems. The heatmap graph is
+    optional, so failing to fetch it just leaves the heatmap switched off.
+    """
     target.mkdir(parents=True, exist_ok=True)
-    wanted = ["backbone_fp32.onnx", "heads.npz"]
+    wanted = list(REQUIRED_WEIGHTS)
     if settings.enable_cam:
         wanted.append("backbone_cam.onnx")
 
@@ -132,13 +140,32 @@ def _fetch_weights(base_url: str, target: Path) -> list[str]:
         destination = target / name
         if destination.exists():
             continue
+        url = f"{base_url.rstrip('/')}/{name}"
         try:
-            with st.spinner(f"Fetching {name} (first run only)…"):
-                urllib.request.urlretrieve(f"{base_url.rstrip('/')}/{name}", destination)
+            with st.spinner(f"Downloading {name}…"):
+                _download(url, destination)
         except Exception as error:
-            destination.unlink(missing_ok=True)
-            problems.append(f"{name}: {error}")
+            if name in REQUIRED_WEIGHTS:
+                problems.append(f"{name} could not be downloaded from {url} ({error})")
     return problems
+
+
+def _download(url: str, destination: Path) -> None:
+    """
+    Download to a `.part` file and rename it only once it is complete.
+
+    Writing straight to the final name meant a download cut off part-way (the
+    host restarting, a timeout) left a truncated file behind. The next start
+    then saw the file "exists", skipped the download, and failed to load it.
+    """
+    partial = destination.with_name(destination.name + ".part")
+    try:
+        with urllib.request.urlopen(url, timeout=120) as response, partial.open("wb") as file:
+            while chunk := response.read(1 << 20):
+                file.write(chunk)
+        partial.replace(destination)
+    finally:
+        partial.unlink(missing_ok=True)
 
 
 def _weights_url() -> str:
@@ -160,7 +187,7 @@ def _weights_url() -> str:
 
 
 @st.cache_resource(show_spinner="Loading the model…")
-def load_engine() -> DRTriageEngine:
+def _load_engine_cached() -> DRTriageEngine:
     """
     Load the ONNX session once per server process.
 
@@ -169,12 +196,36 @@ def load_engine() -> DRTriageEngine:
     model would reload on every widget interaction and each click would cost
     several seconds.
     """
+    problems: list[str] = []
     weights_url = _weights_url()
-    if weights_url and not settings.backbone_path.exists():
-        _fetch_weights(weights_url, settings.model_dir)
+    missing = [name for name in REQUIRED_WEIGHTS if not (settings.model_dir / name).exists()]
+    if weights_url and missing:
+        problems = _fetch_weights(weights_url, settings.model_dir)
 
     engine = DRTriageEngine(settings)
     engine.load()
+    if not engine.is_ready:
+        if problems:
+            engine.load_error = " ".join(problems)
+        elif not weights_url and missing:
+            engine.load_error = (
+                "No model files in models/ and DR_WEIGHTS_URL is not set, so there "
+                "is nowhere to download them from."
+            )
+    return engine
+
+
+def load_engine() -> DRTriageEngine:
+    """
+    The cached engine, except that a failed load is not kept.
+
+    Caching a failure meant one bad download (a timeout, a release that was not
+    published yet) stuck until someone rebooted the app by hand. Dropping it
+    from the cache makes the next page load try again.
+    """
+    engine = _load_engine_cached()
+    if not engine.is_ready:
+        _load_engine_cached.clear()
     return engine
 
 
@@ -313,15 +364,17 @@ def disclaimer() -> None:
 
 def model_status(engine: DRTriageEngine) -> None:
     """One line in the sidebar saying whether the numbers are real."""
-    if engine.is_ready:
+    if engine.is_ready and engine.is_stand_in:
+        st.sidebar.error("Stand-in weights — results are meaningless")
+    elif engine.is_ready:
         size = engine.describe().get("backbone_size_mb")
         st.sidebar.success(f"Model ready{f' · {size} MB' if size else ''}")
-        if not engine.explains:
-            st.sidebar.caption("Heatmaps off — backbone_cam.onnx not loaded.")
-    elif settings.allow_demo_mode:
-        st.sidebar.warning("Demo mode — stages are synthetic")
     else:
-        st.sidebar.error("Model unavailable")
+        # Say WHY, so a failed download on the host is not mistaken for a model
+        # that loaded and is simply giving odd answers.
+        st.sidebar.error("Model not loaded")
+        if engine.load_error:
+            st.sidebar.caption(engine.load_error)
 
 
 # ---------------------------------------------------------------------------
