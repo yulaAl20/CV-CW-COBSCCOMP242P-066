@@ -1,12 +1,3 @@
-"""
-Shared pieces for the Streamlit interface.
-
-The point of this module is that it holds *only* presentation. Every number it
-shows comes from the same `backend/` package the FastAPI service uses —
-preprocessing, inference, triage and the recorded metrics are imported, not
-reimplemented. If the two interfaces ever disagreed about what the model said,
-that would mean a bug in one of them rather than a difference of opinion.
-"""
 
 from __future__ import annotations
 
@@ -329,9 +320,7 @@ def model_status(engine: DRTriageEngine) -> None:
         st.sidebar.success(f"Model ready{f' · {size} MB' if size else ''}")
         if not engine.explains:
             st.sidebar.caption("Heatmaps off — backbone_cam.onnx not loaded.")
-    elif settings.allow_demo_mode:
-        st.sidebar.warning("Demo mode — stages are synthetic")
-    else:
+    elif not settings.allow_demo_mode:
         st.sidebar.error("Model unavailable")
 
 
