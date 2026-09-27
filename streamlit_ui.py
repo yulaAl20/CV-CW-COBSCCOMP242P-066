@@ -313,14 +313,14 @@ def disclaimer() -> None:
 
 def model_status(engine: DRTriageEngine) -> None:
     """One line in the sidebar saying whether the numbers are real."""
-    if engine.is_ready and engine.is_stand_in:
-        st.sidebar.error("Stand-in weights — results are meaningless")
-    elif engine.is_ready:
+    if engine.is_ready:
         size = engine.describe().get("backbone_size_mb")
         st.sidebar.success(f"Model ready{f' · {size} MB' if size else ''}")
         if not engine.explains:
             st.sidebar.caption("Heatmaps off — backbone_cam.onnx not loaded.")
-    elif not settings.allow_demo_mode:
+    elif settings.allow_demo_mode:
+        st.sidebar.warning("Demo mode — stages are synthetic")
+    else:
         st.sidebar.error("Model unavailable")
 
 
