@@ -13,7 +13,6 @@ from backend.preprocessing import (
     to_model_tensor,
 )
 
-
 @pytest.fixture
 def fundus():
 

@@ -1,11 +1,3 @@
-"""
-Application settings.
-
-Every threshold here is copied from the `Config` dataclass in the training
-notebook. They are read from environment variables so a deployment can be
-retuned (for example, a stricter referral threshold for a high-risk clinic)
-without editing code.
-"""
 
 from __future__ import annotations
 
@@ -80,6 +72,10 @@ class Settings:
     cam_backbone_file: str = field(
         default_factory=lambda: os.environ.get("DR_CAM_FILE", "backbone_cam.onnx")
     )
+    # The heatmap needs a second ONNX session, which roughly doubles resident
+    # memory. On a 1 GB host (Streamlit Community Cloud) that is the difference
+    # between running and being killed, so it can be turned off explicitly.
+    enable_cam: bool = field(default_factory=lambda: _env_bool("DR_ENABLE_CAM", True))
 
     # --- inference ------------------------------------------------------
     num_classes: int = 5

@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, "feature/**"]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    name: Tests on Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check backend/ scripts/ tests/
+
+      - name: Build a stand-in model
+        # The real 81 MB backbone is not in the repository, so CI exercises the
+        # inference path against a graph with the same signature instead.
+        run: python tests/make_fake_model.py --out models
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short
+
+      - name: Check the app starts and answers
+        run: |
+          python -c "
+          from fastapi.testclient import TestClient
+          from backend.main import app
+          with TestClient(app) as client:
+              health = client.get('/api/health').json()
+              assert health['model']['ready'], health['model']['error']
+              metrics = client.get('/api/metrics').json()
+              assert metrics['headline']['available']
+              print('health and metrics endpoints OK')
+          "
+
+  docker:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: docker build -t retinatriage:ci .
+
+      - name: Start it and check the health endpoint
+        run: |
+          docker run -d --name ci -p 8000:8000 retinatriage:ci
+          for attempt in $(seq 1 20); do
+            if curl -fs http://localhost:8000/api/health > /dev/null; then
+              echo "container is answering"
+              curl -s http://localhost:8000/api/health
+              docker rm -f ci
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "container never became healthy"
+          docker logs ci
+          docker rm -f ci
+          exit 1
