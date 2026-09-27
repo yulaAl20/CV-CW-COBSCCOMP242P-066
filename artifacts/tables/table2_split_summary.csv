@@ -1,0 +1,5 @@
+split,0 (No DR),1 (Mild NPDR),2 (Moderate NPDR),3 (Severe NPDR),4 (Proliferative DR),Gradable total,Ungradable,All images,Referable %
+external,1805,370,999,193,295,3662,0,3662,40.6
+test,940,95,672,35,137,1879,0,1879,44.9
+train,4386,441,3134,165,639,8765,0,8765,44.9
+val,940,94,671,36,137,1878,0,1878,44.9

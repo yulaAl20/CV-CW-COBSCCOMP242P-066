@@ -1,0 +1,18 @@
+# Fundus photographs are graded against dark, so the interface is dark too.
+# These values match the tokens in frontend/css/styles.css, so the Streamlit
+# app and the FastAPI front end look like one project.
+
+[theme]
+base                    = "dark"
+primaryColor            = "#5B8DEF"
+backgroundColor         = "#0E1620"
+secondaryBackgroundColor = "#16212E"
+textColor               = "#DDE7F1"
+font                    = "sans serif"
+
+[server]
+maxUploadSize = 12          # matches DR_MAX_UPLOAD_MB
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false

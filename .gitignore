@@ -1,26 +1,41 @@
+# --- model weights ---------------------------------------------------------
+# Large binaries do not belong in git history. The exported backbone is ~81 MB,
+# over GitHub's 50 MB warning. Publish it as a Release asset and fetch it with
+# scripts/download_models.py.
+*.pt
+*.pth
+*.onnx
+*.npz
+models/*
+# the folder still needs to explain itself:
+!models/README.md
+
+# --- images ----------------------------------------------------------------
+# Datasets are not committed, but the generated report figures are.
 data/
 *.jpg
 *.jpeg
 *.png
 !docs/images/*.png
-!results/figures/*.png
+!frontend/assets/*
 
-# Model weights: large binaries do not belong in git history.
-# Publish the exported model as a GitHub Release asset instead.
-*.pt
-*.pth
-*.onnx
-*.npz
-models/**
-!models/.gitkeep
-!models/export/deployment_manifest.json
-
+# --- python ----------------------------------------------------------------
 __pycache__/
 *.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
 .ipynb_checkpoints/
 .venv/
 venv/
+env/
+
+# --- local -----------------------------------------------------------------
 .env
+# deployment secrets never go in the repo:
+.streamlit/secrets.toml
+uploads/
+*.log
 .DS_Store
 .idea/
 .vscode/

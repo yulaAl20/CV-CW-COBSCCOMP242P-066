@@ -1,0 +1,8 @@
+metric,DDR test (internal),APTOS (external),difference
+accuracy,0.8664,0.7018,0.1646
+macro precision,0.7525,0.5410,0.2115
+macro recall,0.7134,0.4535,0.2599
+macro F1-score,0.7282,0.4556,0.2726
+weighted F1-score,0.8692,0.6824,0.1868
+quadratic kappa,0.9072,0.7921,0.1151
+referable DR AUC,0.9807,0.9640,0.0167

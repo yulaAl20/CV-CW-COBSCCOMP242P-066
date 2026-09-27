@@ -1,0 +1,6 @@
+deferred_%,uncertainty_cutoff,images_kept,accuracy_on_kept,referable_sensitivity_on_kept
+0,0.4749,1879,0.8664,0.8993
+5,0.1637,1785,0.8846,0.9097
+10,0.1131,1691,0.9054,0.9266
+20,0.0508,1503,0.9415,0.9643
+30,0.0192,1315,0.9582,0.9755

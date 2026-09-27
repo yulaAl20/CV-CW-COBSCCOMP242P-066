@@ -1,0 +1,22 @@
+[project]
+name = "retinatriage"
+version = "1.2.0"
+description = "Diabetic retinopathy stage detection and screening triage"
+requires-python = ">=3.10"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+exclude = ["notebooks", ".venv", "models"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4"]
+ignore = [
+    "E501",  # long lines are caught by the formatter, not the linter
+    "B008",  # FastAPI's Depends()/File() defaults are the documented idiom
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-q"

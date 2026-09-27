@@ -1,0 +1,6 @@
+label,original_%,after_sampling_%
+No DR,50.0,38.7
+Mild NPDR,5.0,11.1
+Moderate NPDR,35.8,28.9
+Severe NPDR,1.9,9.7
+Proliferative DR,7.3,11.7
