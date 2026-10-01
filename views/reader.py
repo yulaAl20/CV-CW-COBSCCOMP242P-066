@@ -33,6 +33,7 @@ from backend.preprocessing import (
 from backend.triage import decide
 
 ui.apply_theme()
+ui.follow_navigation()
 engine = ui.load_engine()
 
 # ---------------------------------------------------------------------------
@@ -44,9 +45,7 @@ st.sidebar.caption("Diabetic retinopathy stage detection")
 ui.model_status(engine)
 
 st.sidebar.divider()
-replay = ui.sidebar_history()
-if replay:
-    st.session_state["viewing"] = replay
+ui.sidebar_history_button(ui.READER_PAGE)
 
 st.sidebar.divider()
 with st.sidebar.expander("Settings"):
@@ -102,6 +101,10 @@ upload = st.file_uploader(
     type=["jpg", "jpeg", "png", "tif", "tiff"],
     label_visibility="collapsed",
     help=f"JPEG, PNG or TIFF · up to {settings.max_upload_mb} MB",
+    # A new key gives an empty uploader. Opening a past scan from the history
+    # page bumps it, otherwise the last upload still sitting in the box would be
+    # taken as the image to show and replace the scan that was asked for.
+    key=f"uploader-{st.session_state.get('uploader_round', 0)}",
 )
 
 
@@ -143,11 +146,13 @@ def analyse(image: np.ndarray, digest: str, filename: str) -> dict:
             heatmap_bytes = ui.encode_jpeg(overlay_heatmap(preprocessed, heatmap))
         explain_ms = (time.perf_counter() - started) * 1000
 
+    read_at = datetime.now()
     return {
         "digest": digest,
         "filename": filename,
         "short_name": (filename[:22] + "…") if len(filename) > 23 else filename,
-        "time": datetime.now().strftime("%H:%M"),
+        "read_at": read_at,
+        "time": read_at.strftime("%H:%M"),
         "grade": prediction.grade,
         "grade_name": prediction.grade_name,
         "action_label": decision.label,
@@ -225,6 +230,14 @@ if len(ui._history()) > 1:
     st.caption(f"Showing **{entry['filename']}** · read at {entry['time']}")
 
 ui.plain_summary(prediction, decision, demo=entry["demo"])
+
+st.write("")
+download, history, _ = st.columns([1, 1, 1.4])
+with download:
+    ui.download_report_button(entry, key=f"report-{entry['digest']}", primary=True)
+with history:
+    st.button("All scans", icon=":material/history:", width="stretch",
+              key="reader-open-history", on_click=ui.go_to, args=(ui.HISTORY_PAGE,))
 
 for message in entry["warnings"]:
     st.warning(message, icon="⚠️")

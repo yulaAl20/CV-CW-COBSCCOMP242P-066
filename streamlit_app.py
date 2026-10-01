@@ -24,6 +24,7 @@ st.set_page_config(
 navigation = st.navigation(
     [
         st.Page("views/reader.py", title="Read an image", icon="👁️", default=True),
+        st.Page("views/history.py", title="Scan history", icon="🗂️"),
         st.Page("views/evidence.py", title="Model evidence", icon="📊"),
     ]
 )

@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import os
 import urllib.request
+from datetime import datetime
 from pathlib import Path
 
 import cv2
@@ -13,6 +14,7 @@ import streamlit as st
 from backend.config import GRADE_DESCRIPTIONS, settings
 from backend.inference import DRTriageEngine
 from backend.metrics_store import MetricsStore
+from backend.report import build_report, report_filename
 
 # The severity scale is the whole colour system. Defined once here, matching
 # frontend/js/grades.js, so a stage means the same colour in both interfaces.
@@ -415,26 +417,38 @@ def confidence_phrase(prediction) -> str:
     return "but is unsure"
 
 
+def action_sentence(decision) -> str:
+    """What to do with the patient, in words."""
+    return PLAIN_ACTION.get(decision.action, decision.label)
+
+
+def finding_sentence(prediction, decision, html: bool = True) -> str:
+    """
+    What the model found, in words.
+
+    One function for the screen and the PDF report, so the two can never word
+    the same reading differently.
+    """
+    if decision.action == "recapture":
+        # the stage is not trustworthy here, so do not lead with it
+        return "The image quality check rejected this photograph before grading it."
+
+    finding = PLAIN_FINDING[prediction.grade].lower()
+    if html:
+        finding = f"<strong>{finding}</strong>"
+    if decision.action == "human":
+        return (
+            f"The model read it as {finding}, {confidence_phrase(prediction)}. "
+            "That is not certain enough to report on its own."
+        )
+    return f"The model found {finding}, {confidence_phrase(prediction)}."
+
+
 def plain_summary(prediction, decision, demo: bool = False) -> None:
     """The answer, before any of the evidence for it."""
     colour = URGENCY_COLOURS.get(decision.urgency, "#26364A")
-    finding = PLAIN_FINDING[prediction.grade]
-    action = PLAIN_ACTION.get(decision.action, decision.label)
-
-    if decision.action == "recapture":
-        # the stage is not trustworthy here, so do not lead with it
-        detail = "The image quality check rejected this photograph before grading it."
-    elif decision.action == "human":
-        detail = (
-            f"The model read it as <strong>{finding.lower()}</strong>, "
-            f"{confidence_phrase(prediction)}. That is not certain enough to report "
-            "on its own."
-        )
-    else:
-        detail = (
-            f"The model found <strong>{finding.lower()}</strong>, "
-            f"{confidence_phrase(prediction)}."
-        )
+    action = action_sentence(decision)
+    detail = finding_sentence(prediction, decision)
 
     scale = (
         ""
@@ -508,40 +522,119 @@ def decode_jpeg(data: bytes) -> np.ndarray:
     return cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
 
 
-def sidebar_history() -> str | None:
+READER_PAGE = "views/reader.py"
+HISTORY_PAGE = "views/history.py"
+
+
+def sidebar_history_button(current_page: str = "") -> None:
     """
-    Render the reading history. Returns the digest the user asked to see again,
-    or None.
+    One button in the sidebar that opens the scan history page.
+
+    The full list, with view and download, lives on its own page; the sidebar
+    only says how many scans there are and takes you there.
     """
-    history = _history()
-    st.sidebar.markdown("**Recent readings**")
+    count = len(_history())
+    st.sidebar.markdown("**Scan history**")
+    st.sidebar.button(
+        f"🗂️  Open scan history ({count})",
+        key="open-history",
+        width="stretch",
+        type="primary" if current_page == HISTORY_PAGE else "secondary",
+        disabled=current_page == HISTORY_PAGE,
+        on_click=go_to,
+        args=(HISTORY_PAGE,),
+    )
+    st.sidebar.caption(
+        "Every image you read in this tab, with a PDF report for each. "
+        "Nothing is saved on the server."
+        if count
+        else "Images you read appear here. Nothing is saved on the server."
+    )
 
-    if not history:
-        st.sidebar.caption("Images you read appear here. Nothing is saved to disk.")
-        return None
 
-    selected = None
-    viewing = st.session_state.get("viewing")
+# Page changes are requested from button callbacks and carried out at the top
+# of the next run. Session state written in the script body just before
+# st.switch_page is dropped by the switch, so "open this scan" would arrive on
+# the reading page without the scan it asked for. Callbacks run before the
+# script and their writes always survive.
 
-    for entry in history:
-        current = entry["digest"] == viewing
-        label = f"{STAGE_DOT[entry['grade']]} {entry['short_name']}"
-        if st.sidebar.button(
-            label,
-            key=f"history-{entry['digest']}",
-            width="stretch",
-            type="primary" if current else "secondary",
-            help=f"{entry['grade_name']} · {entry['action_label']} · {entry['time']}",
-        ):
-            selected = entry["digest"]
-        st.sidebar.caption(f"　{entry['action_label']} · {entry['time']}")
 
-    st.sidebar.caption(f"Kept in this tab only, newest {HISTORY_LIMIT}.")
-    if st.sidebar.button("Clear history", key="history-clear", width="stretch"):
-        history_clear()
-        st.rerun()
+def go_to(page: str) -> None:
+    """Button callback: switch to `page` on this run."""
+    st.session_state["_go_to"] = page
 
-    return selected
+
+def view_scan(digest: str) -> None:
+    """Button callback: open one past scan on the reading page, upload box emptied."""
+    st.session_state["viewing"] = digest
+    st.session_state["uploader_round"] = st.session_state.get("uploader_round", 0) + 1
+    st.session_state.pop("last_upload_key", None)
+    go_to(READER_PAGE)
+
+
+def follow_navigation() -> None:
+    """Call at the top of every page: carries out a switch a callback asked for."""
+    page = st.session_state.pop("_go_to", None)
+    if page:
+        st.switch_page(page)
+
+
+# ---------------------------------------------------------------------------
+# downloadable report
+# ---------------------------------------------------------------------------
+
+
+def report_pdf(entry: dict) -> bytes:
+    """
+    The PDF for one history entry, built once and kept with the entry.
+
+    Built from the same prediction, decision and wording as the screen. The
+    second image is the heatmap when there is one, otherwise the preprocessed
+    image, which is the next most useful thing to show a reviewer.
+    """
+    if entry.get("report_pdf"):
+        return entry["report_pdf"]
+
+    prediction, decision = entry["prediction"], entry["decision"]
+    if entry.get("heatmap"):
+        second, caption = entry["heatmap"], "What the model looked at"
+    else:
+        second, caption = entry.get("preprocessed"), "What the model sees, after preprocessing"
+
+    pdf = build_report(
+        filename=entry["filename"],
+        read_at=entry.get("read_at") or datetime.now(),
+        report_id=entry["digest"],
+        prediction=prediction,
+        decision=decision,
+        action_text=action_sentence(decision),
+        finding_text=finding_sentence(prediction, decision, html=False),
+        original_jpeg=entry["original"],
+        second_jpeg=second,
+        second_caption=caption,
+        warnings=entry.get("warnings", []),
+        demo=entry.get("demo", False),
+        settings=settings,
+        model_note=f"Model file: {settings.backbone_file}.",
+    )
+    entry["report_pdf"] = pdf
+    return pdf
+
+
+def download_report_button(entry: dict, key: str, label: str = "Download report (PDF)",
+                           primary: bool = False) -> None:
+    """A download button for one scan's PDF. Does not rerun the page when clicked."""
+    st.download_button(
+        label,
+        data=report_pdf(entry),
+        file_name=report_filename(entry["filename"], entry.get("read_at") or datetime.now()),
+        mime="application/pdf",
+        key=key,
+        icon=":material/download:",
+        type="primary" if primary else "secondary",
+        on_click="ignore",
+        width="stretch",
+    )
 
 
 def likelihood_phrase(probability: float) -> tuple[str, str]:
