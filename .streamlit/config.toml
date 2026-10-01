@@ -8,8 +8,6 @@ primaryColor            = "#5B8DEF"
 backgroundColor         = "#0E1620"
 secondaryBackgroundColor = "#16212E"
 textColor               = "#DDE7F1"
-font                    = "sans serif"
-
 [server]
 maxUploadSize = 12          # matches DR_MAX_UPLOAD_MB
 enableXsrfProtection = true

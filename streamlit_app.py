@@ -18,7 +18,7 @@ st.set_page_config(
     page_title="RetinaTriage",
     page_icon="👁️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",  # open on desktop, closed on phones
 )
 
 navigation = st.navigation(

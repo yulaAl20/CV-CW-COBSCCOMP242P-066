@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import base64
@@ -109,6 +110,46 @@ THEME_CSS = """
   .disclaimer strong { color: #CF3D57; }
 
   [data-testid="stSidebarNav"] { padding-top: 12px; }
+
+  /* ── landing (reading page before any scan) ──────────────────────── */
+  .land-title {
+    font-size: clamp(34px, 4.6vw, 52px); font-weight: 600; line-height: 1.06;
+    letter-spacing: -0.035em; color: #DDE7F1; margin: 8px 0 18px; max-width: 12ch;
+  }
+  .land-lede { font-size: 17px; line-height: 1.6; color: #97A9BD; max-width: 46ch;
+               margin: 0 0 26px; }
+  .land-hint { font-size: 13px; color: #6B7F95; margin-top: 10px; max-width: 46ch; }
+
+  .retina svg { width: 100%; height: auto; display: block; max-width: 440px;
+                margin: 0 auto; }
+  .retina .ring { stroke-dasharray: 100 100; stroke-dashoffset: 100;
+                  animation: ring-draw 900ms cubic-bezier(.2,.7,.2,1) forwards; }
+  .retina .ring.s1 { animation-delay: 120ms; }  .retina .ring.s2 { animation-delay: 240ms; }
+  .retina .ring.s3 { animation-delay: 360ms; }  .retina .ring.s4 { animation-delay: 480ms; }
+  @keyframes ring-draw { to { stroke-dashoffset: 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .retina .ring { animation: none; stroke-dashoffset: 0; }
+  }
+
+  .scale { margin: 18px auto 0; max-width: 440px; }
+  .scale-row { display: grid; grid-template-columns: 12px 1fr auto; gap: 12px;
+               align-items: baseline; padding: 7px 0; border-bottom: 1px solid #1E2C3D; }
+  .scale-row:last-child { border-bottom: 0; }
+  .scale-dot { width: 10px; height: 10px; border-radius: 50%; transform: translateY(1px); }
+  .scale-name { font-size: 14px; color: #DDE7F1; }
+  .scale-act  { font-size: 13px; color: #97A9BD; text-align: right; }
+
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px;
+           margin: 64px 0 0; padding-top: 30px; border-top: 1px solid #1E2C3D; }
+  .step-n { font-size: 15px; font-weight: 600; color: #5B8DEF; margin: 0 0 6px; }
+  .step-h { font-size: 17px; font-weight: 600; color: #DDE7F1; margin: 0 0 8px;
+            letter-spacing: -0.01em; }
+  .step-p { font-size: 14px; line-height: 1.6; color: #97A9BD; margin: 0; max-width: 34ch; }
+  @media (max-width: 760px) { .steps { grid-template-columns: 1fr; gap: 22px; } }
+
+  .trust { padding-top: 40px; }
+  .trust p { font-size: 15px; line-height: 1.7; color: #97A9BD; max-width: 72ch; margin: 0; }
+  .trust strong { color: #DDE7F1; font-weight: 600; }
 </style>
 """
 
@@ -683,4 +724,148 @@ def plain_answers(prediction) -> None:
         f'<div class="dr-panel"><p style="font-weight:600;font-size:14.5px;'
         f'margin:0 0 6px">In short</p>{"".join(rows)}</div>',
         unsafe_allow_html=True,
+    )
+
+
+# ---------------------------------------------------------------------------
+# landing: the reading page before anything has been read
+# ---------------------------------------------------------------------------
+# One drawn element carries the page: a retina as the camera sees it, ringed by
+# the five severity colours the rest of the app uses for stages. Everything
+# around it stays quiet. The arcs draw in once on load; reduced-motion users
+# get them already drawn.
+
+
+def _arc(cx: float, cy: float, r: float, start: float, end: float) -> str:
+    """SVG path for a circular arc, angles in degrees clockwise from 12 o'clock."""
+    import math
+
+    def point(angle: float) -> tuple[float, float]:
+        radians = math.radians(angle - 90)
+        return cx + r * math.cos(radians), cy + r * math.sin(radians)
+
+    (x1, y1), (x2, y2) = point(start), point(end)
+    large = 1 if (end - start) % 360 > 180 else 0
+    return f"M{x1:.1f},{y1:.1f} A{r},{r} 0 {large} 1 {x2:.1f},{y2:.1f}"
+
+
+def retina_svg() -> str:
+    """A fundus photograph, drawn: disc, macula and the vascular arcades."""
+    rings = []
+    span, gap, start = 64, 8, -160      # five arcs, clockwise from upper left
+    for grade, colour in enumerate(GRADE_COLOURS):
+        a = start + grade * (span + gap)
+        rings.append(
+            f'<path class="ring s{grade}" d="{_arc(200, 200, 184, a, a + span)}" '
+            f'pathLength="100" fill="none" stroke="{colour}" stroke-width="7" '
+            f'stroke-linecap="round"/>'
+        )
+
+    vessels = [
+        # superior and inferior temporal arcades, curving round the macula
+        ("M262,182 C225,118 150,104 70,150", 5.2),
+        ("M262,206 C226,272 150,290 72,250", 5.0),
+        ("M196,126 C186,94 158,74 120,66", 2.6),
+        ("M190,276 C178,310 150,330 118,336", 2.6),
+        ("M138,116 C118,128 100,150 92,176", 1.8),
+        ("M136,282 C116,270 98,250 90,226", 1.8),
+        # nasal vessels, toward the right edge
+        ("M272,178 C292,128 306,100 326,78", 3.6),
+        ("M272,212 C294,262 308,290 328,314", 3.6),
+        ("M282,194 C312,190 336,186 358,180", 2.4),
+        ("M298,128 C318,124 334,128 350,140", 1.6),
+        ("M300,268 C320,276 336,272 352,262", 1.6),
+        # fine branches toward the macula
+        ("M216,138 C204,160 188,172 166,178", 1.4),
+        ("M214,258 C200,240 186,232 164,228", 1.4),
+    ]
+    vessel_paths = "".join(
+        f'<path d="{d}" stroke="#5A170D" stroke-width="{w}" fill="none" '
+        f'stroke-linecap="round" opacity=".9"/>'
+        for d, w in vessels
+    )
+
+    return f"""
+<div class="retina" role="img" aria-label="Illustration of a retinal photograph
+ ringed by the five stages of diabetic retinopathy, from no disease to proliferative.">
+<svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="fundus" cx="46%" cy="50%" r="58%">
+      <stop offset="0%" stop-color="#C8572E"/>
+      <stop offset="55%" stop-color="#A63F22"/>
+      <stop offset="88%" stop-color="#6B2414"/>
+      <stop offset="100%" stop-color="#2A0E08"/>
+    </radialGradient>
+    <radialGradient id="disc" cx="45%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#FFF1CC"/>
+      <stop offset="60%" stop-color="#F2C98A"/>
+      <stop offset="100%" stop-color="#D9934F"/>
+    </radialGradient>
+    <radialGradient id="macula" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#5E1C0F" stop-opacity=".85"/>
+      <stop offset="100%" stop-color="#5E1C0F" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="field"><circle cx="200" cy="200" r="158"/></clipPath>
+  </defs>
+  {''.join(rings)}
+  <circle cx="200" cy="200" r="158" fill="url(#fundus)"/>
+  <g clip-path="url(#field)">
+    <circle cx="150" cy="202" r="34" fill="url(#macula)"/>
+    {vessel_paths}
+    <circle cx="268" cy="194" r="25" fill="url(#disc)"/>
+    <circle cx="272" cy="192" r="9" fill="#FFF8E6" opacity=".75"/>
+  </g>
+</svg>
+</div>"""
+
+
+def severity_scale(referral_grade: int) -> str:
+    """The five stages, their colours, and what the app does at each."""
+    names = ["No retinopathy", "Mild", "Moderate", "Severe", "Proliferative"]
+    rows = []
+    for grade, (name, colour) in enumerate(zip(names, GRADE_COLOURS, strict=True)):
+        action = "Refer to a specialist" if grade >= referral_grade else "Routine rescreen"
+        rows.append(
+            f'<div class="scale-row"><span class="scale-dot" style="background:{colour}">'
+            f'</span><span class="scale-name">{name}</span>'
+            f'<span class="scale-act">{action}</span></div>'
+        )
+    return f'<div class="scale">{"".join(rows)}</div>'
+
+
+def landing_steps(mc_samples: int) -> str:
+    """What happens to the photograph, in the order it happens."""
+    steps = [
+        ("Cleaned up the way the model learned",
+         "Cropped to the retina, contrast lifted where lesions show, uneven flash "
+         "lighting removed. The same steps, in the same order, as in training."),
+        (f"Read {mc_samples} times over",
+         "Each pass switches off a random part of the network. If the readings "
+         "agree, the stage is reported; if they scatter, the model says it is unsure."),
+        ("Turned into a next step",
+         "Photo quality is checked first, then certainty, then severity. A photo "
+         "too poor to read is sent back, and an uncertain one goes to a person."),
+    ]
+    cells = "".join(
+        f'<div><p class="step-n">{number}</p><p class="step-h">{heading}</p>'
+        f'<p class="step-p">{body}</p></div>'
+        for number, (heading, body) in enumerate(steps, start=1)
+    )
+    return f'<div class="steps">{cells}</div>'
+
+
+def landing_trust(metrics: dict) -> str:
+    """The test results in one sentence, or nothing if none are installed."""
+    headline = metrics.get("headline", {})
+    if not headline.get("available"):
+        return ""
+    internal, external = headline["internal"], headline["external"]
+    return (
+        '<div class="trust"><p>Tested on <strong>'
+        f'{internal["images"]:,} photographs it never saw in training</strong>, it '
+        f'agreed with expert graders at a weighted kappa of {internal["qwk"]:.2f} and '
+        f'separated referable from non-referable eyes with an AUC of '
+        f'{internal["referable_auc"]:.2f}. On {external["images"]:,} photos from another '
+        f'country and other cameras the kappa falls to {external["qwk"]:.2f}. '
+        "Model evidence, in the sidebar, shows where it goes wrong.</p></div>"
     )

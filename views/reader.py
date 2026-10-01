@@ -73,13 +73,6 @@ with st.sidebar.expander("Decision thresholds"):
 # intake
 # ---------------------------------------------------------------------------
 
-st.title("Read a fundus photograph")
-st.markdown(
-    '<p class="dr-lede">Upload a retinal photograph. The app reads it, tells you '
-    "what to do with the case, and shows its working if you want it.</p>",
-    unsafe_allow_html=True,
-)
-
 if engine.is_ready and engine.is_stand_in:
     # These weights load cleanly and grade every image the same way, so the
     # app would otherwise look healthy while telling you nothing.
@@ -96,17 +89,47 @@ if not engine.is_ready and not settings.allow_demo_mode:
     st.error(engine.load_error or "The model is not available.")
     st.stop()
 
-upload = st.file_uploader(
-    "Fundus photograph",
-    type=["jpg", "jpeg", "png", "tif", "tiff"],
-    label_visibility="collapsed",
-    help=f"JPEG, PNG or TIFF · up to {settings.max_upload_mb} MB",
-    # A new key gives an empty uploader. Opening a past scan from the history
-    # page bumps it, otherwise the last upload still sitting in the box would be
-    # taken as the image to show and replace the scan that was asked for.
-    key=f"uploader-{st.session_state.get('uploader_round', 0)}",
-)
 
+def upload_box():
+    return st.file_uploader(
+        "Fundus photograph",
+        type=["jpg", "jpeg", "png", "tif", "tiff"],
+        label_visibility="collapsed",
+        help=f"JPEG, PNG or TIFF · up to {settings.max_upload_mb} MB",
+        # A new key gives an empty uploader. Opening a past scan from the history
+        # page bumps it, otherwise the last upload still sitting in the box would
+        # be taken as the image to show and replace the scan that was asked for.
+        key=f"uploader-{st.session_state.get('uploader_round', 0)}",
+    )
+
+
+# Nothing read yet: the landing layout, with the upload box beside the retina.
+# Once a scan is showing, the page drops to a compact header so the result
+# comes first.
+landing = ui.history_find(st.session_state.get("viewing", "")) is None
+
+if landing:
+    intro, picture = st.columns([1.05, 1], gap="large", vertical_alignment="center")
+    with intro:
+        st.markdown(
+            '<h1 class="land-title">Read a fundus photograph</h1>'
+            '<p class="land-lede">Upload a photo of the back of the eye to check it '
+            "for diabetic retinopathy. You get the stage of disease, what to do with "
+            "the patient next, and the evidence behind both.</p>",
+            unsafe_allow_html=True,
+        )
+        upload = upload_box()
+        st.markdown(
+            '<p class="land-hint">Use the original camera capture. A screenshot or a '
+            "crop loses the fine detail the model reads.</p>",
+            unsafe_allow_html=True,
+        )
+    with picture:
+        st.markdown(ui.retina_svg() + ui.severity_scale(settings.referral_grade),
+                    unsafe_allow_html=True)
+else:
+    st.title("Read a fundus photograph")
+    upload = upload_box()
 
 # ---------------------------------------------------------------------------
 # grading
@@ -213,7 +236,10 @@ if upload is not None:
 entry = ui.history_find(st.session_state.get("viewing", ""))
 
 if entry is None:
-    st.caption("The original camera capture works better than a screenshot or a crop.")
+    st.markdown(
+        ui.landing_steps(settings.mc_dropout_samples) + ui.landing_trust(ui.load_metrics()),
+        unsafe_allow_html=True,
+    )
     ui.disclaimer()
     st.stop()
 
